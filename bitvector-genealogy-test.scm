@@ -21,14 +21,7 @@
                     #b10011110))
     (check-equal? (binary-difference #b11111001 #b1001) 4)
     (check-equal? (binary-difference #b01101 #b10001) 3)
-    (check-equal? (binary-difference #b01101 #b00000001101) 0))
-   
-   (test-case
-    "Converting string to numbers in binary format"
-    (check-equal? (string->binary-number "01101")
-                  #b01101)
-    (check-equal? (string->binary-number "")
-                  (void)))))
+    (check-equal? (binary-difference #b01101 #b00000001101) 0))))
 
 (define dna-suite
   (test-suite
@@ -91,22 +84,54 @@
                   (make-hash (list '(0 . -1)
                                    '(3 . 2)
                                    '(2 . 0)
-                                   '(1 . 0)))))))
+                                   '(1 . 0)))))
+   (test-case
+    "Test to see if I can compare results"
+    (check-equal? (compare-results
+                   (make-hash (list '(0 . -1)
+                                    '(3 . 2)
+                                    '(2 . 0)
+                                    '(1 . 0)))
+                   #(-1 0 0 2))
+                  #t)
+    (check-equal? (compare-results
+                   (make-hash (list '(0 . -1)
+                                    '(3 . -1)
+                                    '(2 . 0)
+                                    '(1 . 2)))
+                   #(-1 0 0 2))
+                  (list '(3 2 -1)
+                        '(1 0 2))))))
 
 (define small-dna-suite
   (test-suite
    "Testing including the small sample data"
-;   #:before
+   #:before (lambda () (set-dna! 500))
    
    (test-case
-    "Check what the result is"
-    (check-equal? (make-kinship-hash
-                   (make-relationship-hash
-                    (filename->bitvector
-                     (open-input-file "bitvectors-genes.data.small"))))
+    "Check what the result is, compared to mine."
+    ;(list '(347 119 58)
+    ;      '(284 -1 125)
+    ;      '(211 28 -1)
+    ;      '(125 284 -1)
+    ;      '(58 347 -1))
+    
+    ;    (list '(125 284 399)
+    ;          '(211 28 -1)
+    ;          '(284 -1 125)
+    ;          '(347 119 -1)
+    ;          '(399 125 -1))
+    (check-equal? (compare-results
+                   (make-kinship-hash
+                    (make-relationship-hash
+                     (filename->bitvector
+                      (open-input-file "bitvectors-genes.data.small"))))
+                   (filename->bitvector
+                    (open-input-file "bitvectors-parents.data.small.txt") 10))
                   #f))))
 
 
 
 ;(run-tests utilities-suite 'verbose)
 ;(run-tests dna-suite 'verbose)
+;(run-tests small-dna-suite 'verbose)
