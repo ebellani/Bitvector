@@ -16,11 +16,11 @@
 
 (define MUTATION-RATE 0.2)
 
-(define DNA-LENGTH 0)
-
 ;; http://mathworld.wolfram.com/BinomialDistribution.html
-
 (define DEVIATION 3) ;; 3 = 99.73 percent
+
+
+(define DNA-LENGTH 0)
 
 (define (get-dna)
   DNA-LENGTH)
@@ -55,15 +55,6 @@
       (when (equal? i #\1)
         (set! differences (add1 differences))))
     differences))
-
-;; %-difference : binary-number binary-number -> number
-;; returns a number between 0 and 1 representing the % of difference between 
-;; 2 binary numbers and the current global dna value.
-(define (%-difference individual-1
-                      individual-2
-                      (dna-length (get-dna)))
-  (/ (binary-difference individual-1 individual-2)
-     dna-length))
 
 ;; binomial-standard-deviation : number -> number
 ;; Compute the expected binomial standard deviation for N events of probability P.
@@ -141,12 +132,11 @@
                                   (hash-set! kinship-hash
                                              individual-index
                                              (first relationships-indexes))
-                                  (hash-update!
-                                   relationship-hash
-                                   (first relationships-indexes)
-                                   (λ (relationships)
-                                     (remove individual-index
-                                             relationships))))
+                                  (hash-update! relationship-hash
+                                                (first relationships-indexes)
+                                                (λ (relationships)
+                                                  (remove individual-index
+                                                          relationships))))
                                 ; root node
                                 (begin (hash-remove! relationship-hash
                                                      individual-index)
@@ -185,7 +175,6 @@
          get-dna
          set-dna!
          has-kinship?
-         %-difference
          compare-results
          make-relationship-hash
          make-kinship-hash)

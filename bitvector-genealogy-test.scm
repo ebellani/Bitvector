@@ -28,21 +28,6 @@
    "Testing everything that depends on the size of the DNA"
    #:before (lambda () (set-dna! 10))
    (test-case
-    "Testing the % of difference between 2 individuals"
-    
-    (check-equal? (exact->inexact (%-difference #b0110101010
-                                                #b1110100010))
-                  0.2)
-    (check-equal? (%-difference #b0110101010
-                                #b1001010101)
-                  1)
-    (check-equal? (%-difference #b0110101010
-                                #b0110101010)
-                  0)
-    (check-equal? (exact->inexact (%-difference #b0110101010
-                                                #b0101010101))
-                  0.8))
-   (test-case
     "Test if there is kinship between 2 individuals"
     (check-equal? (has-kinship? #b0110101010
                                 #b1001100101)
@@ -110,11 +95,11 @@
    
    (test-case
     "Check what the result is, compared to mine."
-    ;(list '(347 119 58)
-    ;      '(284 -1 125)
-    ;      '(211 28 -1)
-    ;      '(125 284 -1)
-    ;      '(58 347 -1))
+    ;    (list '(347 119 58)
+    ;          '(284 -1 125)
+    ;          '(211 28 -1)
+    ;          '(125 284 -1)
+    ;          '(58 347 -1))
     
     ;    (list '(125 284 399)
     ;          '(211 28 -1)
@@ -128,10 +113,28 @@
                       (open-input-file "bitvectors-genes.data.small"))))
                    (filename->bitvector
                     (open-input-file "bitvectors-parents.data.small.txt") 10))
-                  #f))))
+                  (list '(347 119 58)
+                        '(284 -1 125)
+                        '(211 28 -1)
+                        '(125 284 -1)
+                        '(58 347 -1))))))
 
 
+(define full-dna-suite
+  (test-suite
+   "Testing including the full sample data. WARNING, THIS TAKES HOURS FOR NOW"
+   #:before (lambda () (set-dna! 10000))
+   
+   (test-case
+    "Print out the kinship hash table formed."
+    (display
+     (make-kinship-hash (make-relationship-hash
+                         (filename->bitvector
+                          (open-input-file "bitvectors-genes.data2"))))))))
 
 ;(run-tests utilities-suite 'verbose)
 ;(run-tests dna-suite 'verbose)
 ;(run-tests small-dna-suite 'verbose)
+;(run-tests full-dna-suite 'verbose)
+
+
