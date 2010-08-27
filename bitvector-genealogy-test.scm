@@ -26,7 +26,7 @@
 (define dna-suite
   (test-suite
    "Testing everything that depends on the size of the DNA"
-   #:before (lambda () (set-dna! 10))
+   #:before (lambda () (set-conditions! 10))
    (test-case
     "Test if there is kinship between 2 individuals"
     (check-equal? (has-kinship? #b0110101010
@@ -91,7 +91,7 @@
 (define small-dna-suite
   (test-suite
    "Testing including the small sample data"
-   #:before (lambda () (set-dna! 500))
+   #:before (lambda () (set-conditions! 500))
    
    (test-case
     "Check what the result is, compared to mine."
@@ -106,6 +106,10 @@
     ;          '(284 -1 125)
     ;          '(347 119 -1)
     ;          '(399 125 -1))
+    ;    (make-kinship-hash
+    ;                    (make-relationship-hash
+    ;                     (filename->bitvector
+    ;                      (open-input-file "bitvectors-genes.data.small")))))))
     (check-equal? (compare-results
                    (make-kinship-hash
                     (make-relationship-hash
@@ -123,7 +127,7 @@
 (define full-dna-suite
   (test-suite
    "Testing including the full sample data. WARNING, THIS TAKES HOURS FOR NOW"
-   #:before (lambda () (set-dna! 10000))
+   #:before (lambda () (set-conditions! 10000))
    
    (test-case
     "Print out the kinship hash table formed."
@@ -134,7 +138,6 @@
 
 ;(run-tests utilities-suite 'verbose)
 ;(run-tests dna-suite 'verbose)
-;(run-tests small-dna-suite 'verbose)
+(run-tests small-dna-suite 'verbose)
 ;(run-tests full-dna-suite 'verbose)
-
 

@@ -12,21 +12,31 @@
 ;;  input line, the 0-based line number of that individual's parent, or -1 if it is
 ;;  the progenitor. Balance performance against probability of mistakes as you see
 ;;  fit.
+
+(require rnrs/arithmetic/bitwise-6)
+(require (planet dherman/memoize:3:1))
+
 (define ROOT-SYMBOL -1)
 
 (define MUTATION-RATE 0.2)
 
 ;; http://mathworld.wolfram.com/BinomialDistribution.html
-(define DEVIATION 3) ;; 3 = 99.73 percent
 
+(define MAXIMUM-DIFERENCE 0)
 
-(define DNA-LENGTH 0)
-
-(define (get-dna)
-  DNA-LENGTH)
-
-(define (set-dna! number)
-  (set! DNA-LENGTH number))
+(define (set-conditions! dna-value
+                         (deviation 3));; 3 = 99.73 percent
+  (let* ([expected-difference
+          (* dna-value
+             MUTATION-RATE)]
+         [standard-deviation
+          (sqrt (* dna-value
+                   MUTATION-RATE
+                   (- 1 MUTATION-RATE)))])
+    (set! MAXIMUM-DIFERENCE
+          (+ expected-difference
+             (* deviation
+                standard-deviation)))))
 
 ;; filename->bitvector : input-port -> (vectorof binary-number)
 ;; read everything from a given file and returns a 
@@ -51,37 +61,23 @@
 ;; returns the number of bits that are different between 2 binary numbers.
 (define (binary-difference bits1 bits2)
   (let ([differences 0])
-    (for ((i (in-string (number->string (bitwise-xor bits1 bits2) 2))))
-      (when (equal? i #\1)
-        (set! differences (add1 differences))))
+    (for ((i (in-string (number->string (bitwise-xor bits1 bits2)
+                                        2)))
+          #:when (equal? i #\1))
+      (set! differences (add1 differences)))
     differences))
-
-;; binomial-standard-deviation : number -> number
-;; Compute the expected binomial standard deviation for N events of probability P.
-(define (binomial-standard-deviation n p)
-  (sqrt (* n p (- 1 p))))
 
 ;; has-kinship? : integer integer -> boolean
 ;; verify if 2 individuals share a kinship. 
 ;; The relationship is assumed if the bit difference between the two is
 ;; less than DEVIATIONS standard deviations from the expected average for
 ;; the MUTATION-RATE.
-(define (has-kinship? individual-1
-                      individual-2
-                      (mutation-rate MUTATION-RATE)
-                      (deviations DEVIATION)
-                      (dna-length (get-dna)))
-  (let* ([expected-difference (* dna-length mutation-rate)]
-         [standard-deviation
-          (binomial-standard-deviation dna-length
-                                       mutation-rate)]
-         [max-difference (+ expected-difference
-                            (* deviations standard-deviation))])
-    (< (binary-difference individual-1
-                          individual-2)
-       max-difference)))
-
-
+;; You must use set-conditions! before using this function, as it relies on
+;; external variables.
+(define (has-kinship? individual-1 individual-2)
+  (< (binary-difference individual-1
+                        individual-2)
+     MAXIMUM-DIFERENCE))
 
 ;; create-relationship-hash : (vectorof number) -> hash
 ;; creates a hash mapping an individual to it's list of relationships.
@@ -97,14 +93,19 @@
                                              individual-1-index)]
                    [individual-2 (vector-ref bitvector
                                              individual-2-index)])
-               (when (and (has-kinship? individual-1
-                                        individual-2)
-                          (not (= individual-1 individual-2)))
+               (when (and (not (= individual-1 individual-2))
+                          (has-kinship? individual-1
+                                        individual-2))
                  (hash-update! relationship-hash
                                individual-1-index
                                (λ (relationships)
                                  (cons individual-2-index relationships)))))))
     relationship-hash))
+
+(set-conditions! 500)
+(time (make-relationship-hash
+       (filename->bitvector
+        (open-input-file "bitvectors-genes.data.small"))))
 
 ;Write a program to guess the reproductive history of BitVectors from their genetic material. The randomly-ordered file bitvectors-genes.data.gz contains a 10,000 bit line for each individual. Your program's output should be, for each input line, the 0-based line number of that individual's parent, or -1 if it is the progenitor. Balance performance against probability of mistakes as you see fit. 
 
@@ -170,10 +171,25 @@
         #t
         results)))
 
+;; profiling...
+;(set-conditions! 500)
+;(compare-results
+; (make-kinship-hash
+;  (make-relationship-hash
+;   (filename->bitvector
+;    (open-input-file "bitvectors-genes.data.small"))))
+; (filename->bitvector
+;  (open-input-file "bitvectors-parents.data.small.txt") 10))
+(make-relationship-hash
+ (filename->bitvector
+  (open-input-file "bitvectors-genes.data.small")))
+;(make-relationship-hash
+; (filename->bitvector
+;  (open-input-file "bitvectors-genes.data.smaller")))
+
 (provide filename->bitvector
          binary-difference
-         get-dna
-         set-dna!
+         set-conditions!
          has-kinship?
          compare-results
          make-relationship-hash
