@@ -59,7 +59,7 @@
 
 ;;  binary-difference : binary-number binary-number -> integer
 ;; returns the number of bits that are different between 2 binary numbers.
-(define (binary-difference bits1 bits2)
+(define/memo (binary-difference bits1 bits2)
   (let ([differences 0])
     (for ((i (in-string (number->string (bitwise-xor bits1 bits2)
                                         2)))
@@ -102,12 +102,7 @@
                                  (cons individual-2-index relationships)))))))
     relationship-hash))
 
-(set-conditions! 500)
-(time (make-relationship-hash
-       (filename->bitvector
-        (open-input-file "bitvectors-genes.data.small"))))
-
-;Write a program to guess the reproductive history of BitVectors from their genetic material. The randomly-ordered file bitvectors-genes.data.gz contains a 10,000 bit line for each individual. Your program's output should be, for each input line, the 0-based line number of that individual's parent, or -1 if it is the progenitor. Balance performance against probability of mistakes as you see fit. 
+;Write a program to guess the reproductive history of BitVectors from their genetic material. The randomly-ordered file bitvectors-genes.data.gz contains a 10,000 bit line for each individual. Your program's output should be, for each input line, the 0-based line number of that individual's parent, or -1 if it is the progenitor. Balance performance against probability of mistakes as you see fit.
 
 ;; make-kinship-hash : hash -> hash
 ;; creates a hash mapping an individual only to it's parent.
@@ -172,17 +167,22 @@
         results)))
 
 ;; profiling...
-;(set-conditions! 500)
-;(compare-results
-; (make-kinship-hash
-;  (make-relationship-hash
-;   (filename->bitvector
-;    (open-input-file "bitvectors-genes.data.small"))))
-; (filename->bitvector
-;  (open-input-file "bitvectors-parents.data.small.txt") 10))
-(make-relationship-hash
+(set-conditions! 500)
+(define relationships
+  (make-relationship-hash
+   (filename->bitvector
+    (open-input-file "small-data"))))
+
+(define results empty)
+
+(time (set! results (make-kinship-hash relationships)))
+
+(compare-results
+ results
  (filename->bitvector
-  (open-input-file "bitvectors-genes.data.small")))
+  (open-input-file "bitvectors-parents.data.small.txt") 10))
+
+
 ;(make-relationship-hash
 ; (filename->bitvector
 ;  (open-input-file "bitvectors-genes.data.smaller")))

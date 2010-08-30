@@ -39,7 +39,7 @@
 (define (set-conditions! genome-length)
   (set! GENOME-LENGTH genome-length)
   (set! MAXIMUM-DIFFERENCE
-        (let* ([deviation 2] ;; 3 = 99.73 percent
+        (let* ([deviation 3] ;; 3 = 99.73 percent
                [expected-difference
                 (* GENOME-LENGTH MUTATION-RATE)]
                [standard-deviation
@@ -48,9 +48,6 @@
                          (- 1 MUTATION-RATE)))])
           (+ expected-difference
              (* deviation standard-deviation)))))
-
-
-
 
 ;; filename->population : input-port -> (hashof integer integer)
 ;; read everything from a given file and maps the index to 
@@ -114,26 +111,6 @@
                                   current-relationships))
                           empty))))
     relationships))
-
-(define (make-relationship-hash bitvector)
-  (let ([relationship-hash (make-hash)]
-        [dna-range (in-range 0 (vector-length bitvector))])
-    (for* ((individual-1-index dna-range)
-           (individual-2-index dna-range))
-      (begin (unless (hash-has-key? relationship-hash individual-1-index)
-               (hash-set! relationship-hash individual-1-index empty))
-             (let ([individual-1 (vector-ref bitvector
-                                             individual-1-index)]
-                   [individual-2 (vector-ref bitvector
-                                             individual-2-index)])
-               (when (and (not (= individual-1 individual-2))
-                          (has-kinship? individual-1
-                                        individual-2))
-                 (hash-update! relationship-hash
-                               individual-1-index
-                               (λ (relationships)
-                                 (cons individual-2-index relationships)))))))
-    relationship-hash))
 
 ;; has-kinship? : integer integer hash -> boolean
 ;; verify if 2 individuals share a kinship. 
@@ -241,46 +218,64 @@
                        source))))
     genealogy))
 
-
+(define (find-genealogy2 population probabilities-sum (passes 3))
+  (let ([genealogy (make-hash)])
+    (for* ([genome-1-key (in-range 0 POPULATION-SIZE)]
+           [genome-2-key (in-range 0 POPULATION-SIZE)]
+           #:when (not (= genome-1-key
+                          genome-2-key)))
+      (let* ([found-possible-source (hash-ref genealogy
+                                              genome-1-key
+                                              #f)]
+             [updater
+              (if (has-kinship? genome-1-key
+                                genome-2-key
+                                population)
+                  (if (not (false? found-possible-source))
+                      (if (is-source? genome-2-key
+                                      found-possible-source
+                                      probabilities-sum)
+                          genome-2-key
+                          found-possible-source)
+                      genome-2-key)
+                  #f)])
+        (when (not (false? updater))
+          (hash-update! genealogy
+                        genome-1-key
+                        (λ (x)
+                          updater)
+                        #f))))
+    genealogy))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; TESTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (set-conditions! 500)
 (define population (filename->population
-                    (open-input-file "bitvectors-genes.data.small")))
+                    (open-input-file "small-data")))
+
+(time (population->relationships population))
 
 (define relationships (population->relationships population))
 (define probabilities-sum (population->probabilities-sum population))
+(define results empty)
+(define results2 empty)
 
-(define results (find-genealogy relationships
-                                probabilities-sum))
+(time (set! results (find-genealogy relationships
+                                    probabilities-sum)))
+(time (set! results2 (find-genealogy2 population
+                                      probabilities-sum)))
 
-;(define answers (filename->population
-;                 (open-input-file "bitvectors-parents.data.small.txt")
-;                 10))
+(define answers (filename->population
+                 (open-input-file "bitvectors-parents.data.small.txt")
+                 10))
 
 
-;(display results)
-;(time (find-genealogy population probabilities-sum))
+(display "results 1 = ")
+(compare-results results answers)
 
-;(display (compare-results results answers))
-
-;
-;
-;(time (relationships->genealogy (population->relationships population)))
-
-;(set-conditions! 10000)
-;(define population empty)
-;(time (set! population (filename->population
-;                        (open-input-file "bitvectors-genes.data2"))))
-
-;(define small-population
-;  (filename->bit-vector
-;   (open-input-file "bitvectors-genes.data.small")))
-
-;(time (find-root small-population))
-;(time (bit-vector->relationships small-population))
+(display "results 2 = ")
+(compare-results results2 answers)
 
 ;; find-root : hash -> integer
 ;; given the probabilities, find the one that has the biggest 
