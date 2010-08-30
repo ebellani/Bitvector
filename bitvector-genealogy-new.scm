@@ -10,10 +10,15 @@
 ;; http://web.itu.edu.tr/~yazicivo/files/bitvector-genealogy.lisp.txt
 
 (provide filename->population
+         population->relationships
          kinship-probability
          population->probabilities-sum
          set-conditions!
-         hamming-weigth)
+         hamming-weigth
+         find-genealogy
+         find-genealogy-2
+         find-genealogy-3
+         compare-results)
 
 (require rnrs/arithmetic/bitwise-6)
 (require (planet dherman/memoize:3:1))
@@ -30,10 +35,10 @@
 
 (define MAXIMUM-DIFFERENCE 0)
 
-;(define-syntax-rule (while condition body)
-;  (let loop ()
-;    (when condition
-;      body (loop))))
+(define-syntax-rule (while condition body)
+  (let loop ()
+    (when condition
+      body (loop))))
 
 
 (define (set-conditions! genome-length)
@@ -97,19 +102,17 @@
   (let ([relationships (make-hash)])
     (for* ((genome-1-index (in-range 0 POPULATION-SIZE))
            (genome-2-index (in-range 0 POPULATION-SIZE))
-           #:when (and (not (= genome-1-index
-                               genome-2-index))))
-      (if (not (hash-has-key? relationships genome-1-index))
-          (hash-set! relationships genome-1-index empty)
-          (when (has-kinship? genome-1-index
-                              genome-2-index
-                              population)
-            (hash-update! relationships
-                          genome-1-index
-                          (λ (current-relationships)
-                            (cons genome-2-index
-                                  current-relationships))
-                          empty))))
+           #:when (not (= genome-1-index
+                          genome-2-index)))
+      (when (has-kinship? genome-1-index
+                          genome-2-index
+                          population)
+        (hash-update! relationships
+                      genome-1-index
+                      (λ (current-relationships)
+                        (cons genome-2-index
+                              current-relationships))
+                      empty)))
     relationships))
 
 ;; has-kinship? : integer integer hash -> boolean
@@ -218,7 +221,11 @@
                        source))))
     genealogy))
 
-(define (find-genealogy2 population probabilities-sum (passes 3))
+;; find-genealogy-2 : hash hash -> hash
+;; verify for every genome if every other genome has a kinship.
+;; If it has, connect them. If the element is already connected,
+;; verify which has a greater chance of being the parent.
+(define (find-genealogy-2 population probabilities-sum)
   (let ([genealogy (make-hash)])
     (for* ([genome-1-key (in-range 0 POPULATION-SIZE)]
            [genome-2-key (in-range 0 POPULATION-SIZE)]
@@ -247,45 +254,73 @@
                         #f))))
     genealogy))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; TESTS
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(set-conditions! 500)
-(define population (filename->population
-                    (open-input-file "small-data")))
+; find-root : hash -> integer
+; given the probabilities, find the one that has the biggest 
+; chance of being the root
+(define (find-root population-probabilities)
+  (car (first (sort (hash-map population-probabilities
+                              (λ (x y)
+                                (cons x y)))
+                    (λ (x y)
+                      (> (cdr x)
+                         (cdr y)))))))
 
-(time (population->relationships population))
-
-(define relationships (population->relationships population))
-(define probabilities-sum (population->probabilities-sum population))
-(define results empty)
-(define results2 empty)
-
-(time (set! results (find-genealogy relationships
-                                    probabilities-sum)))
-(time (set! results2 (find-genealogy2 population
-                                      probabilities-sum)))
-
-(define answers (filename->population
-                 (open-input-file "bitvectors-parents.data.small.txt")
-                 10))
-
-
-(display "results 1 = ")
-(compare-results results answers)
-
-(display "results 2 = ")
-(compare-results results2 answers)
-
-;; find-root : hash -> integer
-;; given the probabilities, find the one that has the biggest 
-;; chance of being the root
-;(define (find-root population-probabilities)
-;  (car (first (sort (hash-map population-probabilities
-;                              (λ (x y)
-;                                (cons x y)))
-;                    (λ (x y)
-;                      (> (cdr x)
-;                         (cdr y)))))))
-
-
+;; find-genealogy-3  : hash hash -> hash
+;; creates a hash mapping an individual only to it's parent.
+;    * Find all the bit vectors with only a single parent-child relationship
+;    * Assume that those vectors are the child nodes
+;    * Record that information
+;    * Remove the child node from the parent's list of relationships
+;    * Repeat
+;    * If the element is root, verify if it is the element with the most probability of being root.
+(define (find-genealogy-3 relationships probabilities-sum (passes 10))
+  (let* ([genealogy (make-hash)]
+         [root (find-root probabilities-sum)]
+         [current-relationships (hash-copy relationships)])
+    (local [(define (parse-relationships genome-key genome-relationships)
+              (unless (> (length genome-relationships) 1)
+                (begin
+                  (hash-remove! current-relationships genome-key)
+                  (if (= (length genome-relationships) 1)
+                      ; leaf node
+                      (begin
+                        (hash-update! current-relationships
+                                      (first genome-relationships)
+                                      (λ (source-relationships)
+                                        (remove genome-key
+                                                source-relationships))
+                                      empty)
+                        (hash-set! genealogy
+                                   genome-key
+                                   (first genome-relationships)))
+                      ; clones of root node
+                      (when (not (= genome-key root))
+                        (hash-set! genealogy
+                                   genome-key
+                                   root))))))]
+      (begin
+        ; deal with problematic root case
+        (hash-set! genealogy root ROOT-SYMBOL)
+        (for-each (λ (root-relationships)
+                    (hash-update! current-relationships
+                                  root-relationships
+                                  (λ (clone-relationships)
+                                    (remove root clone-relationships))))
+                  (hash-ref current-relationships root))
+        (hash-set! current-relationships root empty)
+        (for ([i (in-range 0 passes)]
+              #:when (not (false? (hash-iterate-first current-relationships))))
+          (hash-for-each current-relationships
+                         parse-relationships))))
+    genealogy))
+;92(457 284)
+;17(420 337 131)
+;457(417 284 92)
+;420(368 137 17)
+;417(457 284)
+;385(284 137)
+;368(420 137)
+;337(131 17)
+;284(457 417 385 92)
+;137(420 385 368)
+;131(337 17)

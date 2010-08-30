@@ -25,7 +25,7 @@
 (define MAXIMUM-DIFERENCE 0)
 
 (define (set-conditions! dna-value
-                         (deviation 3));; 3 = 99.73 percent
+                         (deviation 4));; 3 = 99.73 percent
   (let* ([expected-difference
           (* dna-value
              MUTATION-RATE)]
@@ -168,19 +168,19 @@
 
 ;; profiling...
 (set-conditions! 500)
-(define relationships
-  (make-relationship-hash
-   (filename->bitvector
-    (open-input-file "small-data"))))
+(define population (filename->bitvector
+                    (open-input-file "small-data")))
+(define relationships (make-relationship-hash
+                       population))
 
-(define results empty)
-
-(time (set! results (make-kinship-hash relationships)))
-
-(compare-results
- results
- (filename->bitvector
-  (open-input-file "bitvectors-parents.data.small.txt") 10))
+;(define results empty)
+;
+;(time (set! results (make-kinship-hash relationships)))
+;
+;(compare-results
+; results
+; (filename->bitvector
+;  (open-input-file "bitvectors-parents.data.small.txt") 10))
 
 
 ;(make-relationship-hash
